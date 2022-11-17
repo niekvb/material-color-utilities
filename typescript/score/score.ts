@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import {CAM16} from '../hct/cam16';
+import {Cam16} from '../hct/cam16';
 import * as utils from '../utils/color_utils';
 import * as math from '../utils/math_utils';
 
@@ -50,7 +50,8 @@ export class Score {
    *     were not suitable for a theme, a default fallback color will be
    *     provided, Google Blue.
    */
-  static score(colorsToPopulation: Map<number, number>): number[] {
+  static score(colorsToPopulation: Map<number, number>, contentColor = false):
+      number[] {
     // Determine the total count of all colors.
     let populationSum = 0;
     for (const population of colorsToPopulation.values()) {
@@ -62,13 +63,13 @@ export class Score {
     // count. Also, fill a cache of CAM16 colors representing each color, and
     // record the proportion of colors for each CAM16 hue.
     const colorsToProportion = new Map<number, number>();
-    const colorsToCam = new Map<number, CAM16>();
+    const colorsToCam = new Map<number, Cam16>();
     const hueProportions = new Array<number>(360).fill(0);
     for (const [color, population] of colorsToPopulation.entries()) {
       const proportion = population / populationSum;
       colorsToProportion.set(color, proportion);
 
-      const cam = CAM16.fromInt(color);
+      const cam = Cam16.fromInt(color);
       colorsToCam.set(color, cam);
 
       const hue = Math.round(cam.hue);
@@ -106,7 +107,9 @@ export class Score {
 
     // Remove colors that are unsuitable, ex. very dark or unchromatic colors.
     // Also, remove colors that are very similar in hue.
-    const filteredColors = Score.filter(colorsToExcitedProportion, colorsToCam);
+    const filteredColors = contentColor ?
+        Score.filterContent(colorsToCam) :
+        Score.filter(colorsToExcitedProportion, colorsToCam);
     const dedupedColorsToScore = new Map<number, number>();
     for (const color of filteredColors) {
       let duplicateHue = false;
@@ -144,7 +147,7 @@ export class Score {
 
   private static filter(
       colorsToExcitedProportion: Map<number, number>,
-      colorsToCam: Map<number, CAM16>): number[] {
+      colorsToCam: Map<number, Cam16>): number[] {
     const filtered = new Array<number>();
     for (const [color, cam] of colorsToCam.entries()) {
       const proportion = colorsToExcitedProportion.get(color)!;
@@ -155,5 +158,9 @@ export class Score {
       }
     }
     return filtered;
+  }
+
+  private static filterContent(colorsToCam: Map<number, Cam16>): number[] {
+    return Array.from(colorsToCam.keys());
   }
 }

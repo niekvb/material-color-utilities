@@ -10,7 +10,7 @@ a new color space.
 
 Language    | Availability  | Package
 ----------- | ------------- | ------------------------------------------------------------------------------------------
-C/C++       | *Coming soon* |
+C++         | ✅             |
 Dart        | ✅             | [![pub package](https://img.shields.io/pub/v/material_color_utilities.svg)](https://pub.dev/packages/material_color_utilities)
 Java        | ✅             | *Coming soon*
 Objective-C | *Coming soon* |
@@ -84,8 +84,7 @@ Material Design Components, Android System UI, etc.
 
 ## Background
 
-Learn about the
-[M3 color system](https://m3.material.io/styles/color/the-color-system/key-colors-tones).
+[The Science of Color & Design - Material Design](https://material.io/blog/science-of-color-design)
 
 ## Design Tooling
 

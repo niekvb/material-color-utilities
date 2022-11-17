@@ -25,8 +25,8 @@ import java.util.Map;
  */
 public final class TonalPalette {
   Map<Integer, Integer> cache;
-  float hue;
-  float chroma;
+  double hue;
+  double chroma;
 
   /**
    * Create tones using the HCT hue and chroma from a color.
@@ -46,11 +46,11 @@ public final class TonalPalette {
    * @param chroma HCT chroma
    * @return Tones matching hue and chroma.
    */
-  public static final TonalPalette fromHueAndChroma(float hue, float chroma) {
+  public static final TonalPalette fromHueAndChroma(double hue, double chroma) {
     return new TonalPalette(hue, chroma);
   }
 
-  private TonalPalette(float hue, float chroma) {
+  private TonalPalette(double hue, double chroma) {
     cache = new HashMap<>();
     this.hue = hue;
     this.chroma = chroma;
@@ -62,7 +62,14 @@ public final class TonalPalette {
    * @param tone HCT tone, measured from 0 to 100.
    * @return ARGB representation of a color with that tone.
    */
+  // AndroidJdkLibsChecker is higher priority than ComputeIfAbsentUseValue (b/119581923)
+  @SuppressWarnings("ComputeIfAbsentUseValue")
   public int tone(int tone) {
-    return cache.computeIfAbsent(tone, k -> Hct.from(this.hue, this.chroma, tone).toInt());
+    Integer color = cache.get(tone);
+    if (color == null) {
+      color = Hct.from(this.hue, this.chroma, tone).toInt();
+      cache.put(tone, color);
+    }
+    return color;
   }
 }

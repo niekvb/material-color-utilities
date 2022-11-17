@@ -18,22 +18,18 @@
 class MathUtils {
   /// The signum function.
   ///
-  ///
   /// Returns 1 if num > 0, -1 if num < 0, and 0 if num = 0
   static int signum(double num) {
     if (num < 0) {
       return -1;
+    } else if (num == 0) {
+      return 0;
     } else {
-      if (num == 0) {
-        return 0;
-      } else {
-        return 1;
-      }
+      return 1;
     }
   }
 
   /// The linear interpolation function.
-  ///
   ///
   /// Returns start if amount = 0 and stop if amount = 1
   static double lerp(double start, double stop, double amount) {
@@ -42,38 +38,33 @@ class MathUtils {
 
   /// Clamps an integer between two integers.
   ///
-  ///
   /// Returns input when min <= input <= max, and either min or max
   /// otherwise.
   static int clampInt(int min, int max, int input) {
     if (input < min) {
       return min;
-    } else {
-      if (input > max) {
-        return max;
-      }
+    } else if (input > max) {
+      return max;
     }
+
     return input;
   }
 
   /// Clamps an integer between two floating-point numbers.
-  ///
   ///
   /// Returns input when min <= input <= max, and either min or max
   /// otherwise.
   static double clampDouble(double min, double max, double input) {
     if (input < min) {
       return min;
-    } else {
-      if (input > max) {
-        return max;
-      }
+    } else if (input > max) {
+      return max;
     }
+
     return input;
   }
 
   /// Sanitizes a degree measure as an integer.
-  ///
   ///
   /// Returns a degree measure between 0 (inclusive) and 360
   /// (exclusive).
@@ -87,7 +78,6 @@ class MathUtils {
 
   /// Sanitizes a degree measure as a floating-point number.
   ///
-  ///
   /// Returns a degree measure between 0.0 (inclusive) and 360.0
   /// (exclusive).
   static double sanitizeDegreesDouble(double degrees) {
@@ -96,6 +86,23 @@ class MathUtils {
       degrees = degrees + 360.0;
     }
     return degrees;
+  }
+
+  /// Sign of direction change needed to travel from one angle to
+  /// another.
+  ///
+  /// For angles that are 180 degrees apart from each other, both
+  /// directions have the same travel distance, so either direction is
+  /// shortest. The value 1.0 is returned in this case.
+  ///
+  /// [from] The angle travel starts from, in degrees.
+  /// [to] The angle travel ends at, in degrees.
+  /// Returns -1 if decreasing from leads to the shortest travel
+  /// distance, 1 if increasing from leads to the shortest travel
+  /// distance.
+  static double rotationDirection(double from, double to) {
+    final increasingDifference = sanitizeDegreesDouble(to - from);
+    return increasingDifference <= 180.0 ? 1.0 : -1.0;
   }
 
   /// Distance of two points on a circle, represented using degrees.

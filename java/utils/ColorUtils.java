@@ -27,9 +27,39 @@ package utils;
 public class ColorUtils {
   private ColorUtils() {}
 
+  static final double[][] SRGB_TO_XYZ =
+      new double[][] {
+        new double[] {0.41233895, 0.35762064, 0.18051042},
+        new double[] {0.2126, 0.7152, 0.0722},
+        new double[] {0.01932141, 0.11916382, 0.95034478},
+      };
+
+  static final double[][] XYZ_TO_SRGB =
+      new double[][] {
+        new double[] {
+          3.2413774792388685, -1.5376652402851851, -0.49885366846268053,
+        },
+        new double[] {
+          -0.9691452513005321, 1.8758853451067872, 0.04156585616912061,
+        },
+        new double[] {
+          0.05562093689691305, -0.20395524564742123, 1.0571799111220335,
+        },
+      };
+
+  static final double[] WHITE_POINT_D65 = new double[] {95.047, 100.0, 108.883};
+
   /** Converts a color from RGB components to ARGB format. */
   public static int argbFromRgb(int red, int green, int blue) {
     return (255 << 24) | ((red & 255) << 16) | ((green & 255) << 8) | (blue & 255);
+  }
+
+  /** Converts a color from linear RGB components to ARGB format. */
+  public static int argbFromLinrgb(double[] linrgb) {
+    int r = delinearized(linrgb[0]);
+    int g = delinearized(linrgb[1]);
+    int b = delinearized(linrgb[2]);
+    return argbFromRgb(r, g, b);
   }
 
   /** Returns the alpha component of a color in ARGB format. */
@@ -57,30 +87,15 @@ public class ColorUtils {
     return alphaFromArgb(argb) >= 255;
   }
 
-  /** Returns the sRGB to XYZ transformation matrix. */
-  public static double[][] srgbToXyz() {
-    return new double[][] {
-      new double[] {0.41233895, 0.35762064, 0.18051042},
-      new double[] {0.2126, 0.7152, 0.0722},
-      new double[] {0.01932141, 0.11916382, 0.95034478},
-    };
-  }
-
-  /** Returns the XYZ to sRGB transformation matrix. */
-  public static double[][] xyzToSrgb() {
-    return new double[][] {
-      new double[] {3.2406, -1.5372, -0.4986},
-      new double[] {-0.9689, 1.8758, 0.0415},
-      new double[] {0.0557, -0.204, 1.057},
-    };
-  }
-
   /** Converts a color from ARGB to XYZ. */
   public static int argbFromXyz(double x, double y, double z) {
-    double[] linearRgb = MathUtils.matrixMultiply(new double[] {x, y, z}, xyzToSrgb());
-    int r = delinearized(linearRgb[0]);
-    int g = delinearized(linearRgb[1]);
-    int b = delinearized(linearRgb[2]);
+    double[][] matrix = XYZ_TO_SRGB;
+    double linearR = matrix[0][0] * x + matrix[0][1] * y + matrix[0][2] * z;
+    double linearG = matrix[1][0] * x + matrix[1][1] * y + matrix[1][2] * z;
+    double linearB = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2] * z;
+    int r = delinearized(linearR);
+    int g = delinearized(linearG);
+    int b = delinearized(linearB);
     return argbFromRgb(r, g, b);
   }
 
@@ -89,12 +104,12 @@ public class ColorUtils {
     double r = linearized(redFromArgb(argb));
     double g = linearized(greenFromArgb(argb));
     double b = linearized(blueFromArgb(argb));
-    return MathUtils.matrixMultiply(new double[] {r, g, b}, srgbToXyz());
+    return MathUtils.matrixMultiply(new double[] {r, g, b}, SRGB_TO_XYZ);
   }
 
   /** Converts a color represented in Lab color space into an ARGB integer. */
   public static int argbFromLab(double l, double a, double b) {
-    double[] whitePoint = whitePointD65();
+    double[] whitePoint = WHITE_POINT_D65;
     double fy = (l + 16.0) / 116.0;
     double fx = a / 500.0 + fy;
     double fz = fy - b / 200.0;
@@ -114,11 +129,17 @@ public class ColorUtils {
    * @return a Lab object representing the color
    */
   public static double[] labFromArgb(int argb) {
-    double[] whitePoint = whitePointD65();
-    double[] xyz = xyzFromArgb(argb);
-    double xNormalized = xyz[0] / whitePoint[0];
-    double yNormalized = xyz[1] / whitePoint[1];
-    double zNormalized = xyz[2] / whitePoint[2];
+    double linearR = linearized(redFromArgb(argb));
+    double linearG = linearized(greenFromArgb(argb));
+    double linearB = linearized(blueFromArgb(argb));
+    double[][] matrix = SRGB_TO_XYZ;
+    double x = matrix[0][0] * linearR + matrix[0][1] * linearG + matrix[0][2] * linearB;
+    double y = matrix[1][0] * linearR + matrix[1][1] * linearG + matrix[1][2] * linearB;
+    double z = matrix[2][0] * linearR + matrix[2][1] * linearG + matrix[2][2] * linearB;
+    double[] whitePoint = WHITE_POINT_D65;
+    double xNormalized = x / whitePoint[0];
+    double yNormalized = y / whitePoint[1];
+    double zNormalized = z / whitePoint[2];
     double fx = labF(xNormalized);
     double fy = labF(yNormalized);
     double fz = labF(zNormalized);
@@ -135,18 +156,9 @@ public class ColorUtils {
    * @return ARGB representation of grayscale color with lightness matching L*
    */
   public static int argbFromLstar(double lstar) {
-    double fy = (lstar + 16.0) / 116.0;
-    double fz = fy;
-    double fx = fy;
-    double kappa = 24389.0 / 27.0;
-    double epsilon = 216.0 / 24389.0;
-    boolean lExceedsEpsilonKappa = lstar > 8.0;
-    double y = lExceedsEpsilonKappa ? fy * fy * fy : lstar / kappa;
-    boolean cubeExceedEpsilon = fy * fy * fy > epsilon;
-    double x = cubeExceedEpsilon ? fx * fx * fx : lstar / kappa;
-    double z = cubeExceedEpsilon ? fz * fz * fz : lstar / kappa;
-    double[] whitePoint = whitePointD65();
-    return argbFromXyz(x * whitePoint[0], y * whitePoint[1], z * whitePoint[2]);
+    double y = yFromLstar(lstar);
+    int component = delinearized(y);
+    return argbFromRgb(component, component, component);
   }
 
   /**
@@ -156,14 +168,8 @@ public class ColorUtils {
    * @return L*, from L*a*b*, coordinate of the color
    */
   public static double lstarFromArgb(int argb) {
-    double y = xyzFromArgb(argb)[1] / 100.0;
-    double e = 216.0 / 24389.0;
-    if (y <= e) {
-      return 24389.0 / 27.0 * y;
-    } else {
-      double yIntermediate = Math.pow(y, 1.0 / 3.0);
-      return 116.0 * yIntermediate - 16.0;
-    }
+    double y = xyzFromArgb(argb)[1];
+    return 116.0 * labF(y / 100.0) - 16.0;
   }
 
   /**
@@ -178,12 +184,22 @@ public class ColorUtils {
    * @return Y in XYZ
    */
   public static double yFromLstar(double lstar) {
-    double ke = 8.0;
-    if (lstar > ke) {
-      return Math.pow((lstar + 16.0) / 116.0, 3.0) * 100.0;
-    } else {
-      return lstar / 24389.0 / 27.0 * 100.0;
-    }
+    return 100.0 * labInvf((lstar + 16.0) / 116.0);
+  }
+
+  /**
+   * Converts a Y value to an L* value.
+   *
+   * <p>L* in L*a*b* and Y in XYZ measure the same quantity, luminance.
+   *
+   * <p>L* measures perceptual luminance, a linear scale. Y in XYZ measures relative luminance, a
+   * logarithmic scale.
+   *
+   * @param y Y in XYZ
+   * @return L* in L*a*b*
+   */
+  public static double lstarFromY(double y) {
+    return labF(y / 100.0) * 116.0 - 16.0;
   }
 
   /**
@@ -224,7 +240,7 @@ public class ColorUtils {
    * @return The white point
    */
   public static double[] whitePointD65() {
-    return new double[] {95.047, 100.0, 108.883};
+    return WHITE_POINT_D65;
   }
 
   static double labF(double t) {
@@ -247,6 +263,5 @@ public class ColorUtils {
       return (116 * ft - 16) / kappa;
     }
   }
-
 }
 
